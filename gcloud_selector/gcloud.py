@@ -299,8 +299,9 @@ class GCloud:
         
         return cmd
     
-    def port_forward_command(self, vm: VM, project_id: str, 
-                             local_port: int, remote_port: int) -> list[str]:
+    def port_forward_command(self, vm: VM, project_id: str,
+                             local_port: int, remote_port: int,
+                             remote_host: str = "127.0.0.1") -> list[str]:
         """Generate port forwarding command for a VM."""
         return [
             "gcloud", "compute", "ssh",
@@ -309,7 +310,7 @@ class GCloud:
             f"--project={project_id}",
             "--tunnel-through-iap",
             "--",
-            "-N", "-L", f"{local_port}:localhost:{remote_port}"
+            "-N", "-L", f"{local_port}:{remote_host}:{remote_port}"
         ]
     
     def start_vm(self, vm: VM, project_id: str) -> bool:
