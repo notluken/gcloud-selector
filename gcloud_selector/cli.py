@@ -108,8 +108,8 @@ Examples:
     )
     action_group.add_argument(
         "--port-forward",
-        metavar="LOCAL:REMOTE",
-        help="Set up port forwarding (e.g., 8080:80)"
+        metavar="LOCAL[:HOST]:REMOTE",
+        help="Set up port forwarding (e.g., 8080:80 or 8080:10.0.0.5:80; host defaults to 127.0.0.1)"
     )
     
     # Configuration
@@ -235,21 +235,38 @@ def connect_ssh(gcloud: GCloud, vm: VM, project_id: str,
 def handle_port_forward(gcloud: GCloud, vm: VM, project_id: str, 
                         port_spec: Optional[str] = None):
     """Handle port forwarding action."""
+    host = "127.0.0.1"
+
     if port_spec:
+        parts = port_spec.split(":")
         try:
-            local, remote = map(int, port_spec.split(":"))
+            if len(parts) == 2:
+                local, remote = int(parts[0]), int(parts[1])
+            elif len(parts) == 3:
+                local, host, remote = int(parts[0]), parts[1], int(parts[2])
+                if not host:
+                    raise ValueError
+            else:
+                raise ValueError
         except ValueError:
-            ui.print_status("Invalid port format. Use LOCAL:REMOTE (e.g., 8080:80)", "error")
+            ui.print_status(
+                "Invalid port format. Use LOCAL:REMOTE or LOCAL:HOST:REMOTE "
+                "(e.g., 8080:80 or 8080:10.0.0.5:80)",
+                "error"
+            )
             return
     else:
         local = ui.get_port("Local port", 8080)
         remote = ui.get_port("Remote port", 80)
         if not local or not remote:
             return
-    
-    cmd = gcloud.port_forward_command(vm, project_id, local, remote)
-    
-    ui.print_status(f"Port forwarding localhost:{local} -> {vm.name}:{remote}", "success")
+        host = ui.get_input("Remote host", "127.0.0.1")
+
+    cmd = gcloud.port_forward_command(vm, project_id, local, remote, host)
+
+    ui.print_status(
+        f"Port forwarding localhost:{local} -> {vm.name}:{host}:{remote}", "success"
+    )
     print(f"\n{ui.Colors.DIM}$ {' '.join(cmd)}{ui.Colors.RESET}\n")
     print(f"{ui.Colors.YELLOW}Press Ctrl+C to stop port forwarding{ui.Colors.RESET}\n")
     
